@@ -1,0 +1,545 @@
+---
+title: "Project_2"
+author: "Amruta Gajanan Bhat, Chandra Kishor Mishra, Priyadarshini Raghavendra, Shubhinder Singh Rana"
+date: "2023-12-03"
+output: html_document
+---
+
+# Step 1- importing the dataset
+```{r}
+library(zoo)
+library(ggplot2)
+library(forecast)
+library(imputeTS)
+library(tseries)
+library(TSA)
+library(readxl)
+library(dplyr)
+library(corrplot)
+library(GGally)
+library(RColorBrewer)
+library(forecast)
+
+# Assuming your CSV file is named "oil.csv" and is in the specified path
+data <- read.csv("./oil.csv")
+data[1:5, ]
+
+# Convert 'date' to a Date object
+data$date <- as.Date(data$date)
+```
+
+# Step 2- Plot the time series
+```{r}
+plot(data$date, data$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Time Series Plot')
+```
+
+
+# step 3: exploring ways to find missing values
+## a. replace missing values with mean values
+```{r}
+imputed_data_mean = data
+imputed_data_mean$dcoilwtico <- ifelse(is.na(imputed_data_mean$dcoilwtico), mean(imputed_data_mean$dcoilwtico, na.rm = TRUE), imputed_data_mean$dcoilwtico)
+
+#plotting time series replacing missing data with mean
+plot(imputed_data_mean$date, imputed_data_mean$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Impute with mean values')
+```
+
+## b. replace missing values with Forward Fill (ffill) 
+```{r}
+imputed_data_ffill = data
+missing_indices <- which(is.na(imputed_data_ffill$dcoilwtico))
+imputed_data_ffill$dcoilwtico[missing_indices] <- na_locf(imputed_data_ffill$dcoilwtico, option = "locf")[missing_indices]
+
+#plotting time series replacing missing data with mean
+plot(imputed_data_ffill$date, imputed_data_ffill$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Impute last observation')
+```
+
+## c. replace missing values with bfill
+```{r}
+imputed_data_bfill = data
+missing_indices <- which(is.na(imputed_data_bfill$dcoilwtico))
+imputed_data_bfill$dcoilwtico[missing_indices] <- na_locf(imputed_data_bfill$dcoilwtico, option = "nocb")[missing_indices]
+
+#plotting time series replacing missing data with mean
+plot(imputed_data_bfill$date, imputed_data_bfill$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Impute next observation')
+```
+
+## d. repalcing missing values with moving average
+```{r}
+imputed_data_ma=data
+missing_indices <- which(is.na(imputed_data_ma$dcoilwtico))
+imputed_data_ma$dcoilwtico[missing_indices] <- na_ma(imputed_data_ma$dcoilwtico, weighting = "simple", k=4)[missing_indices]
+
+plot(imputed_data_ma$date, imputed_data_ma$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Impute with rolling mean')
+
+```
+
+## e. linear interpolation technique to impute missing values
+```{r}
+imputed_data_lin=data
+missing_indices <- which(is.na(imputed_data_lin$dcoilwtico))
+imputed_data_lin$dcoilwtico[missing_indices] <- na_interpolation(imputed_data_lin$dcoilwtico, option = "linear")[missing_indices]
+
+plot(imputed_data_lin$date, imputed_data_lin$dcoilwtico, type='l', xlab='Date', ylab='dcoilwtico', main='Impute with linear interpolation')
+
+```
+
+# Step 3. Plot time series with Imputed data
+## a. Plotting mean imputed data with original time series
+```{r}
+plot(data$date, data$dcoilwtico, type='l', col='blue', lty=1, lwd=2, xlab='Date', ylab='dcoilwtico', main='Original and mean imputation')
+  
+# Add the mean imputed time series to the plot
+lines(imputed_data_mean$date, imputed_data_mean$dcoilwtico, col='red', lty=2, lwd=2)
+  
+# Add a legend
+legend("topright", legend=c("Original", "Imputed_mean"), col=c("blue", "red"), lty=c(1, 2), lwd=2)
+```
+
+## b. Plotting ffill imputed data with original time series
+```{r}
+# LOCF - Last observation carried forward or forward fill
+plot(data$date, data$dcoilwtico, type='l', col='blue', lty=1, lwd=2, xlab='Date', ylab='dcoilwtico', main='Original and LOCF imputation')
+  
+# Add the ffill imputed time series to the plot
+lines(imputed_data_ffill$date, imputed_data_ffill$dcoilwtico, col='seagreen3', lty=2, lwd=2)
+  
+# Add a legend
+legend("topright", legend=c("Original", "Imputed_ffill"), col=c("blue", "seagreen3"), lty=c(1, 2), lwd=2)
+```
+
+## c.Plotting bfill imputed data with original time series
+```{r}
+# NOCB - Next observation carried backward or backward fill
+plot(data$date, data$dcoilwtico, type='l', col='blue', lty=1, lwd=2, xlab='Date', ylab='dcoilwtico', main='Original and NOCB imputation')
+  
+# Add the bfill imputed time series to the plot
+lines(imputed_data_bfill$date, imputed_data_bfill$dcoilwtico, col='yellowgreen', lty=2, lwd=2)
+  
+# Add a legend
+legend("topright", legend=c("Original", "Imputed_bfill"), col=c("blue", "yellowgreen"), lty=c(1, 2), lwd=2)
+```
+
+## d. Plotting moving average imputed data with original time series
+```{r}
+# moving average or rolling mean
+plot(data$date, data$dcoilwtico, type='l', col='blue', lty=1, lwd=2, xlab='Date', ylab='dcoilwtico', main='Original and MA imputation')
+  
+# Add the moving average or rolling mean imputed time series to the plot
+lines(imputed_data_ma$date, imputed_data_ma$dcoilwtico, col='orange3', lty=2, lwd=2)
+  
+# Add a legend
+legend("topright", legend=c("Original", "Imputed_ffill"), col=c("blue", "orange3"), lty=c(1, 2), lwd=2)
+```
+
+## e. Plotting linear interpolation imputed data with original time series
+```{r}
+# moving average or rolling mean
+plot(data$date, data$dcoilwtico, type='l', col='blue', lty=1, lwd=2, xlab='Date', ylab='dcoilwtico', main='Original and linear interpolation')
+  
+# Add the moving average or rolling mean imputed time series to the plot
+lines(imputed_data_lin$date, imputed_data_lin$dcoilwtico, col='orange3', lty=2, lwd=2)
+  
+# Add a legend
+legend("topright", legend=c("Original", "Imputed_ffill"), col=c("blue", "orange3"), lty=c(1, 2), lwd=2)
+```
+
+---
+
+# Step 4. ETS models and about Holt-Winters' models
+
+Exponential smoothing methods generate forecasts by computing weighted averages of historical observations, with the weights diminishing exponentially as the observations age. This framework allows for the swift production of reliable forecasts applicable across a diverse range of time series, making it versatile, and advantageous to industrial applications.
+
+There are mainly 3 types of exponential smoothing models - 
+1.Simple exponential smoothing
+2.Holt's linear trend method
+3.Holt-Winters' method
+
+Simple exponential smoothing - 
+This method is suitable for forecasting data with no clear trend or seasonal pattern.
+The naive method and average method represent two extremes -  the former assigns all weight to the last observation, while the latter gives equal weight to all observations.
+
+Forecasts are determined through weighted averages, with exponentially decreasing weights as observations extend further into the past, placing the smallest weights on the oldest observations.
+
+---
+![](1 SES eq.png)
+---
+
+where 0 < A < 1 is called a smoothing parameter, controlling the rate at which the weights decrease. 
+A = alpha
+A larger A prioritizes recent observations with a quick decay in weight, while a smaller A emphasizes observations from the distant past with a slower decay.
+For simple exponential smoothing, the only component included is the level, lt.
+
+---
+![](2 SES eq.png)
+---
+
+Forecasting equation represents the forecast value at time t+h. 
+Smoothing equation updates the level at each step of the series.
+Setting h=1 gives the fitted values, while setting t=T gives the true forecasts beyond the training data.
+Simple exponential smoothing serves as a baseline or starting point for more sophisticated forecasting methods.
+
+Holt's linear trend method - 
+Simple exponential smoothing is extended to allow the forecasting of data with a trend. This method involves a forecast equation and two smoothing equations (one for the level and one for the trend) - 
+
+---
+![](3 Holt linear eq.png)
+---
+
+where lt denotes an estimate of the level of the series at time t, bt denotes an estimate of the trend (slope) of the series at time t, A is the smoothing parameter for the level, 0 <= A <= 1, and B (beta star) is the smoothing parameter for the trend, 0 <= B <= 1.
+Here, the level equation shows that lt is a weighted average of observation yt and the one-step-ahead training forecast for time t, here is given by lt−1+bt−1. The trend equation shows that bt is a weighted average of the estimated trend at time t based on lt−lt−1 and bt−1, the previous estimate of the trend.
+Thus, we can say that the forecast function is no longer flat but trending, as the h-step-ahead forecast is equal to the last estimated level plus h times the last estimated trend value. Hence the forecasts are a linear function of h.
+
+Damped trend methods - 
+The forecasts generated by Holt's linear method display a constant trend (increasing or decreasing) indefinitely into the future. These methods tend to over-forecast, especially for longer forecast horizons. Thus, a dampening parameter is introduced that “dampens” the trend to a flat line some time in the future. In conjunction with the smoothing parameters A and B (with values between 0 and 1 as in Holt's method), this method also includes a damping parameter 0< phi< 1.
+
+---
+![](4 Damped Holt linear.png)
+---
+
+Note that if phi = 1, this method is identical to Holt's linear method. 
+Forecast converges to lT + phi bT/(1−phi) as h -> infinity. This means that short-run forecasts are trended while long-run forecasts are constant.
+
+Holt-Winter's method - 
+Two variations of this method cater to different types of seasonal components. 
+The additive method suits cases where seasonal variations remain relatively constant, while the multiplicative method is more suitable for situations where seasonal variations change proportionally to the series level, and the forecast is calculated as the product of these components.
+In the additive method, the seasonal component is expressed in absolute terms and subtracted in the level equation, aiming for a yearly sum close to zero. Conversely, the multiplicative method uses relative (percentage) seasonal components, adjusting the series by division for a yearly sum approximating m, where m is used to denote the period of the seasonality, i.e., the number of seasons in a year. For example, for quarterly data m=4, and for monthly data m=12.
+
+1.Holt-Winters' additive method - 
+
+---
+![](5 Holt Winter additive.png)
+---
+
+Here, we observe that the trend equation is identical to Holt's linear method.
+The level equation shows a weighted average between the seasonally adjusted observation  
+(yt−st−m) and the non-seasonal forecast (lt−1+bt−1) for time t. 
+
+2.Holt-Winter's multiplicative method - 
+
+---
+![](6 Holt Winter multiplicative.png)
+---
+
+The level equation depicts a weighted average between the seasonally adjusted observation (yt/st−m) and the non-seasonal forecast (lt−1 + b t−1) for time t, highlighting its emphasis on relative seasonality adjustments and suitability for changing seasonal variations proportionally to the series level.
+
+3.Holt-Winters' damped method - 
+Holt-Winters' method with multiplicative seasonality provides accurate and robust forecasts for seasonal data. Damping is possible with both additive and multiplicative Holt-Winters' methods.
+
+---
+![](7 Holt Winter damped.png)
+---
+
+Developed to handle a wide range of patterns in time series data, ETS models include three primary components -  Error, Trend, and Seasonality. These components can be either additive or multiplicative, resulting in a versatile set of models capable of capturing different types of time series behaviors.
+In the context of the forecast package in R, ETS models are implemented to provide users with a powerful tool for time series forecasting. The package facilitates the application of ETS models to diverse datasets to analyze and predict time series data efficiently.
+By considering variations in the combinations of the trend and seasonal components, nine exponential smoothing methods are possible - 
+
+---
+![](8 All combo.png)
+---
+
+Specific combinations like ETS(A,N,M), ETS(A,A,M), and ETS(A,Ad,M) are excluded due to division by values potentially close to zero in the state equations. Additionally, models with multiplicative errors are suitable for strictly positive data but may become numerically unstable with zeros or negative values, leading to the exclusive consideration of fully additive models in such cases.
+The forecast() function from the fable package is employed to derive predictions from an ETS model. This function consistently provides the means of the forecast distribution, ensuring consistency even when these means differ from traditional point forecasts.
+
+---
+---
+
+# Step 5. Suggest suitable model for the data
+
+Based on the description of the data and the image, simple exponential smoothing (SES) would be the most appropriate model for forecasting. This is because the data does not exhibit a clear trend or seasonality, which are the primary features that SES is designed to capture.
+
+Holt's linear trend method and Holt-Winters exponential smoothing are more complex models that are better suited for data that has trend and/or seasonality. However, since the data in this case does not have these characteristics, SES would be a simpler and more effective model to use.
+
+---
+
+# Step 6. Run the models and check for adequacy
+
+## Before we train the models, let's check for stationarity
+```{r}
+# Function to check stationarity using Dickey-Fuller test
+check_stationarity <- function(time_series) {
+  # Perform Dickey-Fuller test
+  result <- adf.test(time_series)
+  
+  # Display the test statistic and p-value
+  cat("Dickey-Fuller Test Results:\n")
+  cat("Test Statistic:", result$statistic, "\n")
+  cat("p-value:", result$p.value, "\n")
+  
+  # Interpret the results
+  cat("\nConclusion:\n")
+  if (result$p.value <= 0.05) {
+    cat("Reject the null hypothesis. The time series is likely stationary.\n")
+  } else {
+    cat("Fail to reject the null hypothesis. The time series is likely non-stationary.\n")
+  }
+}
+```
+
+```{r}
+# Call the function with your time series data
+ts_data <-ts(imputed_data_ma$dcoilwtico, frequency = 365)
+check_stationarity(ts_data)
+
+ts_data %>%
+  stl(t.window=13, s.window="periodic", robust=TRUE) %>%
+  autoplot()
+
+```
+
+## Since the series is not stationary, let's perform transformations: differencing
+```{r}
+# Differencing the time series
+differenced_series <- diff(imputed_data_ma$dcoilwtico)
+
+```
+
+### Let's check is differencing helps
+```{r}
+ts_data <-ts(differenced_series, frequency = 365)
+check_stationarity(ts_data)
+
+ts_data %>%
+  stl(t.window=13, s.window="periodic", robust=TRUE) %>%
+  autoplot()
+
+```
+
+## After differencing we see stationarity, plot ACF and PACF
+```{r}
+# ACF Plot
+acf(differenced_series, main = "Autocorrelation Function (ACF)", lag.max=30)
+```
+
+
+# q=1
+
+```{r}
+# PACF Plot
+pacf(differenced_series, main = "Partial Autocorrelation Function (PACF)", lag.max=30)
+
+```
+
+p = 1
+
+```{r}
+# EACF Plot
+eacf(differenced_series)
+
+# 1,1,1 ARIMA(1, 1, 1)
+```
+
+## Let's create a function to run the ETS models
+```{r}
+ETS_Model_train <- function(ts_data, method, imputation_method, model) {
+  
+  # Step 1: Split the time series into training and testing sets
+  train_size <- length(ts_data) - 30
+  train_data <- ts_data[1:train_size]
+  test_data <- ts_data[(train_size+1):length(ts_data)]
+
+  if(model=="ARIMA"){
+      # step 1, fit arima model with order 1, 1, 1
+      fitted_model<-Arima(train_data, order=c(1, 1, 1))
+      
+      # forecast for next 30 days
+      forecast_values <- forecast(fitted_model, h = length(test_data))
+  }
+  else{
+
+    # Step 2: Train the ETS model on the training data
+    fitted_model <- ets(train_data, method)
+  
+    # Step 3: Forecast using the trained ETS model
+    forecast_values <- forecast(fitted_model, h = length(test_data))
+  }
+  
+  # Step 4: Evaluate the forecast against the actual values (test_data)
+  accuracy_metrics <- accuracy(forecast_values, test_data)
+
+  # Step 5: Print the accuracy metrics
+  #cat("Accuracy metrics for", imputation_method, ":\n")
+  #print(accuracy_metrics)
+
+  #cat("Training RMSE: ", accuracy_metrics[3], "Test RMSE: ", accuracy_metrics[4], "\n")
+  listRow<-c(imputation_method, model, round(accuracy_metrics[3], 2), round(accuracy_metrics[4],2))
+  
+  # Step 6: Visualize the forecast
+  plot(forecast_values, main = paste("ETS Forecast -", imputation_method, ", ", model), ylab = "dcoilwtico", col = "blue")
+
+  # Return the trained model and forecast values
+  return(list(model = fitted_model, forecast = forecast_values, listRow))
+}
+
+
+```
+
+## Run the models for different imputation techniques
+```{r}
+imputation_methods<-c('Mean', 'Forward fill (LOCF)', 'Backward fill (NOCB)', 'Moving Average', 'Linear Interpolation')
+models<-c('ARIMA'="order(1, 1, 1)", 'Simple ES'="ANN", 'Trend Model'="AAN", 'Holt Winter'="AAN")
+
+allRows<-c()
+
+for (x in imputation_methods) {
+    for (y in seq(1, length(models))) {
+        if (x=='Mean'){
+            ts_data <-ts(imputed_data_mean$dcoilwtico, frequency = 365)
+
+        } else if (x=="Forward fill (LOCF)") {
+            ts_data <-ts(imputed_data_ffill$dcoilwtico, frequency = 365)
+
+        } else if ( x=="Backward fill (NOCB)") {
+            ts_data <-ts(imputed_data_bfill$dcoilwtico, frequency = 365)
+            
+        } else if (x=="Moving Average") {
+            ts_data <-ts(imputed_data_ma$dcoilwtico, frequency = 365)
+            
+        } else {
+            ts_data <-ts(imputed_data_lin$dcoilwtico, frequency = 365)
+        }
+
+
+        ETS_model <- ETS_Model_train(ts_data, 
+                                     models[y], 
+                                     x, 
+                                     names(models[y]))
+        
+        allRows<-c(allRows, ETS_model[3]) 
+        }
+}
+
+finalTable <- as.data.frame(allRows)
+names(finalTable)<-NULL
+finalTable.T <- as.data.frame(t(finalTable))
+colnames(finalTable.T)<-c("Imputation Method", "Model", "Training RMSE", "Testing RMSE")
+
+```
+
+### Since we see a dip in the Oil prices in 2015, let's exclude that data and try running the models
+
+```{r}
+
+ETS_Model_train_from_2015 <- function(ts_data, method, imputation_method, model) {
+  # Step 1: Split the time series into training and testing sets
+
+  train_size <- length(ts_data) - 30  
+  train_data <- ts_data[523:train_size]
+  test_data <- ts_data[(train_size+1):length(ts_data)]
+
+  if(model=="ARIMA"){
+      # step 1, fit arima model with order 1, 1, 1
+      fitted_model<-Arima(train_data, order=c(1, 1, 1))
+      
+      # forecast for next 30 days
+      forecast_values <- forecast(fitted_model, h = length(test_data))
+  }
+  else{
+
+    # Step 2: Train the ETS model on the training data
+    fitted_model <- ets(train_data, method)
+  
+    # Step 3: Forecast using the trained ETS model
+    forecast_values <- forecast(fitted_model, h = length(test_data))
+  }
+  
+  # Step 4: Evaluate the forecast against the actual values (test_data)
+  accuracy_metrics <- accuracy(forecast_values, test_data)
+
+  # Step 5: Print the accuracy metrics
+  #cat("Accuracy metrics for", imputation_method, ":\n")
+  #print(accuracy_metrics)
+
+  #cat("Training RMSE: ", accuracy_metrics[3], "Test RMSE: ", accuracy_metrics[4], "\n")
+  listRow<-c(imputation_method, model, round(accuracy_metrics[3], 2), round(accuracy_metrics[4],2))
+  
+  # Step 6: Visualize the forecast
+  plot(forecast_values, main = paste("ETS Forecast -", imputation_method, ", ", model), ylab = "dcoilwtico", col = "blue")
+
+  # Return the trained model and forecast values
+  return(list(model = fitted_model, forecast = forecast_values, listRow))
+}
+
+```
+
+
+```{r}
+
+allRows<-c()
+
+for (x in imputation_methods) {
+    for (y in seq(1, length(models))) {
+        if (x=='Mean'){
+            ts_data <-ts(imputed_data_mean$dcoilwtico, frequency = 365)
+
+        } else if (x=="Forward fill (LOCF)") {
+            ts_data <-ts(imputed_data_ffill$dcoilwtico, frequency = 365)
+
+        } else if ( x=="Backward fill (NOCB)") {
+            ts_data <-ts(imputed_data_bfill$dcoilwtico, frequency = 365)
+            
+        } else if (x=="Moving Average") {
+            ts_data <-ts(imputed_data_ma$dcoilwtico, frequency = 365)
+            
+        } else {
+            ts_data <-ts(imputed_data_lin$dcoilwtico, frequency = 365)
+        }
+
+        ETS_model_2015 <- ETS_Model_train_from_2015(ts_data, 
+                                     models[y], 
+                                     x, 
+                                     names(models[y]))
+        allRows<-c(allRows, ETS_model_2015[3])
+      }
+}
+
+finalTable_2015 <- as.data.frame(allRows)
+names(finalTable_2015)<-NULL
+finalTable_2015.T <- as.data.frame(t(finalTable_2015))
+colnames(finalTable_2015.T)<-c("Imputation Method", "Model", "Training RMSE", "Testing RMSE")
+
+
+```
+
+# Step 7. Model comparison
+
+```{r}
+finalTable.T
+```
+```{r}
+finalTable.T %>% arrange(finalTable.T["Testing RMSE"])
+
+```
+
+## Observation: Trend Model with Moving Average imputation performing well!
+
+```{r}
+
+finalTable_2015.T %>% arrange(finalTable_2015.T["Testing RMSE"])
+
+```
+
+## Observation: Trend Model with Backward fill imputation performing well!
+
+
+# Forecast with the best model
+
+
+```{r}
+# Backward fill
+ts_data <-ts(imputed_data_bfill$dcoilwtico, start=c(2013), frequency = 365)
+
+train_size <- length(ts_data) - 30  
+train_data <- ts_data[523:train_size]
+test_data <- ts_data[(train_size+1):length(ts_data)]
+
+# Holts linear trend model
+fitted_model <- ets(train_data, "AAN")
+
+print(start(ts_data)[1])
+print(end(ts_data)[1])
+
+forecast_values <- forecast(fitted_model, h = length(test_data))
+
+plot(forecast_values, main = paste("ETS Forecast"), ylab = "dcoilwtico", col = "blue") 
+```
